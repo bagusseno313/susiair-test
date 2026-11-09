@@ -280,6 +280,26 @@ const loadSummary = async () => {
   summary.value = data;
 };
 
+const getProgressColor = (progress: number): string => {
+  const stops = [
+    { at: 0, color: [22, 163, 74] }, // green
+    { at: 50, color: [234, 179, 8] }, // yellow
+    { at: 100, color: [220, 38, 38] }, // red
+  ];
+  const value = Math.max(0, Math.min(progress, 100));
+  const upperIndex = stops.findIndex((stop) => stop.at >= value);
+  const lower = stops[Math.max(upperIndex - 1, 0)];
+  const upper = stops[upperIndex < 0 ? stops.length - 1 : upperIndex];
+  const ratio =
+    upper.at === lower.at ? 0 : (value - lower.at) / (upper.at - lower.at);
+
+  const color = lower.color.map((channel, index) =>
+    Math.round(channel + (upper.color[index] - channel) * ratio),
+  );
+
+  return `rgb(${color.join(", ")})`;
+};
+
 const loadCards = async () => {
   const cardEntries = await Promise.all(
     cardConfigs.map(async (card) => {
@@ -389,8 +409,10 @@ watch(selectedRange, () => {
           <div class="progress-track" aria-label="Flight hours progress">
             <div
               class="progress-fill"
-              :style="{ width: `${Math.min(card.progress, 100)}%` }"
-              :class="{ exceeded: card.total > card.limit }"
+              :style="{
+                width: `${Math.min(card.progress, 100)}%`,
+                backgroundColor: getProgressColor(card.progress),
+              }"
             />
           </div>
 
@@ -732,11 +754,7 @@ watch(selectedRange, () => {
 .progress-fill {
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, #22c5e8 0%, #0e2138 100%);
-}
-
-.progress-fill.exceeded {
-  background: linear-gradient(90deg, #ffa5a5 0%, #ef4444 100%);
+  transition: width 0.3s ease, background-color 0.3s ease;
 }
 
 .limit-row {
