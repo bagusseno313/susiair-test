@@ -1,6 +1,11 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { readFile } from 'node:fs/promises';
 
+import {
+  getReferenceDate,
+  toDateString,
+} from '../../common/reference-date.js';
+
 export interface ScheduleLegendItem {
   code: string;
   label: string;
@@ -44,20 +49,6 @@ interface ScheduleDataset {
   today: string;
   legend: ScheduleLegendItem[];
   schedules: ScheduleEntry[];
-}
-
-function parseDateOnly(value: string): Date {
-  const parsed = new Date(`${value}T00:00:00Z`);
-
-  if (Number.isNaN(parsed.getTime())) {
-    throw new BadRequestException('Dates must be in YYYY-MM-DD format.');
-  }
-
-  return parsed;
-}
-
-function toDateString(date: Date): string {
-  return date.toISOString().slice(0, 10);
 }
 
 @Injectable()
@@ -121,7 +112,7 @@ export class SchedulesService {
     return {
       month,
       year,
-      today: dataset.today,
+      today: toDateString(getReferenceDate()),
       legend: dataset.legend,
       days,
     };
