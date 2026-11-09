@@ -38,6 +38,21 @@ describe('FlightHoursService', () => {
     });
   });
 
+  it('does not report dates after the latest dataset date as missing', async () => {
+    process.env.REFERENCE_DATE = '2026-05-31';
+
+    const result = await new FlightHoursService().getSummary('1w');
+    const futurePoint = result.series.find(
+      (point) => point.date === '2026-06-01',
+    );
+
+    expect(result.missingDays).toBe(0);
+    expect(futurePoint).toMatchObject({
+      value: 12.1,
+      missingDays: 0,
+    });
+  });
+
   it('uses today when REFERENCE_DATE is empty', async () => {
     process.env.REFERENCE_DATE = '';
     vi.useFakeTimers();

@@ -138,6 +138,11 @@ export class FlightHoursService {
         Number(entry.hours ?? 0),
       ]),
     );
+    const latestDatasetDate = dataset.flightHours.reduce<string | null>(
+      (latest, entry) =>
+        latest === null || entry.date > latest ? entry.date : latest,
+      null,
+    );
     const configuredReferenceDate = process.env.REFERENCE_DATE?.trim();
     const referenceDate = configuredReferenceDate
       ? parseDateOnly(configuredReferenceDate)
@@ -167,7 +172,9 @@ export class FlightHoursService {
 
         if (hoursByDate.has(iso)) {
           totalHours += hoursByDate.get(iso) ?? 0;
-        } else {
+        } else if (latestDatasetDate === null || iso <= latestDatasetDate) {
+          // Count missing history at the beginning or gaps inside the dataset.
+          // Dates after the final dataset date are future dates, not missing data.
           missingDays += 1;
         }
 
@@ -200,7 +207,12 @@ export class FlightHoursService {
     const chartCursor = new Date(chartStartDate);
 
     while (chartCursor <= chartEndDate) {
-      if (!hoursByDate.has(toDateString(chartCursor))) {
+      const iso = toDateString(chartCursor);
+
+      if (
+        !hoursByDate.has(iso) &&
+        (latestDatasetDate === null || iso <= latestDatasetDate)
+      ) {
         missingDays += 1;
       }
       chartCursor.setUTCDate(chartCursor.getUTCDate() + 1);
