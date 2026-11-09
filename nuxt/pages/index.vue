@@ -155,21 +155,6 @@ const submitLogin = async () => {
 </template>
 
 <style scoped>
-@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap");
-
-:global(html, body, #__nuxt) {
-  margin: 0;
-  min-height: 100%;
-  min-height: 100vh;
-  font-family: "Plus Jakarta Sans", sans-serif;
-  background: #f5f6f8;
-  color: #0e2138;
-}
-
-:global(*) {
-  box-sizing: border-box;
-}
-
 .auth-shell {
   min-height: 100vh;
   display: flex;
