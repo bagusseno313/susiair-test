@@ -1,6 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { readFile } from 'node:fs/promises';
 
+import {
+  getReferenceDate,
+  parseDateOnly,
+} from '../../common/reference-date.js';
+
 export type DocumentStatus = 'safe' | 'soon' | 'expired';
 
 interface DocumentEntry {
@@ -10,7 +15,6 @@ interface DocumentEntry {
 }
 
 interface DocumentDataset {
-  today: string;
   thresholds: {
     warningDays: number;
   };
@@ -21,14 +25,6 @@ export interface DocumentItem extends DocumentEntry {
   status: DocumentStatus;
   daysRemaining: number;
   badge: string;
-}
-
-function parseDateOnly(value: string): Date {
-  const date = new Date(`${value}T00:00:00Z`);
-  if (Number.isNaN(date.getTime())) {
-    throw new Error(`Invalid date: ${value}`);
-  }
-  return date;
 }
 
 function getDaysRemaining(today: Date, expiryDate: Date): number {
@@ -50,11 +46,11 @@ export class DocumentsService {
 
   async getDocuments(): Promise<DocumentItem[]> {
     const dataset = await this.loadDataset();
-    const today = parseDateOnly(dataset.today);
+    const referenceDate = getReferenceDate();
 
     return dataset.documents.map((document) => {
       const expiryDate = parseDateOnly(document.expiryDate);
-      const daysRemaining = getDaysRemaining(today, expiryDate);
+      const daysRemaining = getDaysRemaining(referenceDate, expiryDate);
 
       let status: DocumentStatus = 'safe';
       let badge = `${daysRemaining}d left`;
