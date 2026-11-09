@@ -1,10 +1,33 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, onMounted, ref } from "vue";
 
 const runtimeConfig = useRuntimeConfig();
 const apiBase = runtimeConfig.public.apiBase || "";
-const viewDate = ref(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
-const scheduleData = ref<{ legend: Array<{ code: string; label: string; color: string }>; days: Array<{ date: string; base_name: string | null; base_color: string | null; duty_type: string | null; count_schedules: number; count_logbooks: number; remainingDuties: number; isComplete: boolean; }> }>({
+
+interface ScheduleDay {
+  date: string;
+  base_name: string | null;
+  base_color: string | null;
+  duty_type: string | null;
+  count_schedules: number;
+  count_logbooks: number;
+  remainingDuties: number;
+  isComplete: boolean;
+}
+
+interface ScheduleCalendarResponse {
+  year: number;
+  month: number;
+  today: string;
+  legend: Array<{ code: string; label: string; color: string }>;
+  days: ScheduleDay[];
+}
+
+const viewDate = ref<Date | null>(null);
+const scheduleData = ref<ScheduleCalendarResponse>({
+  year: 0,
+  month: 0,
+  today: "",
   legend: [],
   days: [],
 });
@@ -19,10 +42,13 @@ const getApiUrl = (path: string) => {
 };
 
 const monthLabel = computed(() =>
-  new Intl.DateTimeFormat("en-US", {
-    month: "long",
-    year: "numeric",
-  }).format(viewDate.value),
+  viewDate.value
+    ? new Intl.DateTimeFormat("en-US", {
+        month: "long",
+        year: "numeric",
+        timeZone: "UTC",
+      }).format(viewDate.value)
+    : "Loading schedule",
 );
 
 const calendarCells = computed(() => {
@@ -51,8 +77,12 @@ const calendarCells = computed(() => {
 });
 
 const fetchMonth = async () => {
-  const year = viewDate.value.getFullYear();
-  const month = viewDate.value.getMonth() + 1;
+  if (!viewDate.value) {
+    return;
+  }
+
+  const year = viewDate.value.getUTCFullYear();
+  const month = viewDate.value.getUTCMonth() + 1;
 
   isLoading.value = true;
   error.value = "";
@@ -69,20 +99,66 @@ const fetchMonth = async () => {
     scheduleData.value = await response.json();
   } catch (_err) {
     error.value = "Unable to load the schedule for this month.";
-    scheduleData.value = { legend: [], days: [] };
+    scheduleData.value = {
+      year,
+      month,
+      today: "",
+      legend: [],
+      days: [],
+    };
   } finally {
     isLoading.value = false;
   }
 };
 
-const moveMonth = (delta: number) => {
-  const nextDate = new Date(
-    viewDate.value.getFullYear(),
-    viewDate.value.getMonth() + delta,
-    1,
+const loadInitialMonth = async () => {
+  isLoading.value = true;
+  error.value = "";
+
+  try {
+    // The API defaults to the month containing REFERENCE_DATE.
+    const response = await fetch(getApiUrl("/schedules"));
+
+    if (!response.ok) {
+      throw new Error("Schedule API unavailable");
+    }
+
+    const data = (await response.json()) as ScheduleCalendarResponse;
+
+    if (!data.year || !data.month) {
+      throw new Error("Schedule API did not return a valid reference month");
+    }
+
+    scheduleData.value = data;
+    viewDate.value = new Date(Date.UTC(data.year, data.month - 1, 1));
+  } catch (_err) {
+    error.value = "Unable to load the schedule for the reference date.";
+    scheduleData.value = {
+      year: 0,
+      month: 0,
+      today: "",
+      legend: [],
+      days: [],
+    };
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+const moveMonth = async (delta: number) => {
+  if (!viewDate.value) {
+    return;
+  }
+
+  viewDate.value = new Date(
+    Date.UTC(
+      viewDate.value.getUTCFullYear(),
+      viewDate.value.getUTCMonth() + delta,
+      1,
+    ),
   );
 
-  viewDate.value = nextDate;
+  await fetchMonth();
 };
 
 const getRemainingText = (day: any) => {
@@ -117,7 +193,7 @@ const openDayDetail = (day: any) => {
   window.alert(`Detail page coming soon for ${day.date}.`);
 };
 
-watch(viewDate, fetchMonth, { immediate: true });
+onMounted(loadInitialMonth);
 </script>
 
 <template>
@@ -165,8 +241,17 @@ watch(viewDate, fetchMonth, { immediate: true });
               :key="`${cell.date ?? 'empty'}-${index}`"
               type="button"
               class="day-cell"
-              :class="{ empty: cell.empty, filled: !cell.empty }"
+              :class="{
+                empty: cell.empty,
+                filled: !cell.empty,
+                'reference-date': !cell.empty && cell.date === scheduleData.today,
+              }"
               :style="cell.empty ? {} : { background: cell.base_color ? `${cell.base_color}20` : '#f8fafc', borderColor: cell.base_color || '#dfe3ea' }"
+              :title="
+                !cell.empty && cell.date === scheduleData.today
+                  ? 'Reference date'
+                  : undefined
+              "
               :disabled="cell.empty"
               @click="openDayDetail(cell)"
             >
@@ -364,6 +449,15 @@ watch(viewDate, fetchMonth, { immediate: true });
 .day-cell:hover:not(:disabled) {
   transform: translateY(-1px);
   box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+}
+
+.day-cell.reference-date {
+  border-width: 2px;
+  box-shadow: 0 0 0 3px rgba(14, 33, 56, 0.1);
+}
+
+.day-cell.reference-date .day-number {
+  color: #0e2138;
 }
 
 .day-cell.empty {

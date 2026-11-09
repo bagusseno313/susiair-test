@@ -1,8 +1,25 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 
 import { SchedulesService } from './schedules.service.js';
 
+const originalReferenceDate = process.env.REFERENCE_DATE;
+
+afterEach(() => {
+  if (originalReferenceDate === undefined) {
+    delete process.env.REFERENCE_DATE;
+  } else {
+    process.env.REFERENCE_DATE = originalReferenceDate;
+  }
+});
+
 describe('SchedulesService', () => {
+  it('uses REFERENCE_DATE for the calendar reference day', async () => {
+    process.env.REFERENCE_DATE = '2026-05-31';
+
+    const result = await new SchedulesService().getSchedulesForMonth(2026, 5);
+
+    expect(result.today).toBe('2026-05-31');
+  });
   it('should return all schedules for a month', async () => {
     const service = new SchedulesService();
 
