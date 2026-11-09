@@ -492,16 +492,43 @@ watch(selectedRange, () => {
               :key="point.date"
               :cx="getChartX(index)"
               :cy="getChartY(point.value)"
-              :r="hoveredPoint?.date === point.date ? 6 : 4"
-              class="chart-point"
+              :r="
+                point.date === summary.referenceDate
+                  ? hoveredPoint?.date === point.date
+                    ? 7
+                    : 6
+                  : hoveredPoint?.date === point.date
+                    ? 6
+                    : 4
+              "
+              :class="{
+                'chart-point': true,
+                'reference-date-point': point.date === summary.referenceDate,
+              }"
               tabindex="0"
               role="graphics-symbol"
-              :aria-label="`${point.date}: ${point.value.toFixed(1)} flight hours; ${point.missingDays} missing days in rolling window`"
+              :aria-label="`${point.date}: ${point.value.toFixed(1)} flight hours; ${point.missingDays} missing days in rolling window${point.date === summary.referenceDate ? '; reference date' : ''}`"
               @mouseenter="setHoveredPoint(point, index)"
               @mouseleave="clearHoveredPoint"
               @focus="setHoveredPoint(point, index)"
               @blur="clearHoveredPoint"
             />
+
+            <g
+              v-for="(point, index) in chartPoints.filter(
+                (item) => item.date === summary.referenceDate,
+              )"
+              :key="`${point.date}-reference-label`"
+              class="reference-point-annotation"
+            >
+              <text
+                :x="getChartX(chartPoints.indexOf(point))"
+                :y="Math.max(getChartY(point.value) - 13, 12)"
+                text-anchor="middle"
+              >
+                Reference
+              </text>
+            </g>
 
             <g
               v-if="hoveredPoint"
@@ -892,6 +919,33 @@ watch(selectedRange, () => {
   fill: #22c5e8;
   stroke: #0e2138;
   stroke-width: 2;
+}
+
+.chart-point.reference-date-point {
+  fill: #16a34a;
+  stroke: #ffffff;
+  stroke-width: 2;
+}
+
+.chart-point.reference-date-point:hover,
+.chart-point.reference-date-point:focus {
+  fill: #15803d;
+  stroke: #0e2138;
+  stroke-width: 2;
+}
+
+.reference-point-annotation {
+  pointer-events: none;
+}
+
+.reference-point-annotation text {
+  fill: #15803d;
+  font-size: 10px;
+  font-weight: 800;
+  paint-order: stroke;
+  stroke: #ffffff;
+  stroke-width: 3px;
+  stroke-linejoin: round;
 }
 
 .chart-tooltip {
