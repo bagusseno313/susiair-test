@@ -5,7 +5,7 @@ export function toDateString(date: Date): string {
 }
 
 export function parseDateOnly(value: string): Date {
-  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(value)) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
     throw new BadRequestException('Dates must be in YYYY-MM-DD format.');
   }
 
