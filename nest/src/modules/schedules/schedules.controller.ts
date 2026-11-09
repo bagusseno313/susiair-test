@@ -1,5 +1,6 @@
 import { Controller, Get, Query } from '@nestjs/common';
 
+import { getReferenceDate } from '../../common/reference-date.js';
 import { SchedulesService } from './schedules.service.js';
 
 @Controller('schedules')
@@ -11,8 +12,9 @@ export class SchedulesController {
     @Query('year') year?: string,
     @Query('month') month?: string,
   ) {
-    const targetYear = year ? Number(year) : new Date().getUTCFullYear();
-    const targetMonth = month ? Number(month) : new Date().getUTCMonth() + 1;
+    const referenceDate = getReferenceDate();
+    const targetYear = year ? Number(year) : referenceDate.getUTCFullYear();
+    const targetMonth = month ? Number(month) : referenceDate.getUTCMonth() + 1;
 
     return this.schedulesService.getSchedulesForMonth(targetYear, targetMonth);
   }
