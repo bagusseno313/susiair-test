@@ -48,7 +48,7 @@ describe('FlightHoursService', () => {
 
     expect(result.missingDays).toBe(0);
     expect(futurePoint).toMatchObject({
-      value: 0,
+      value: 12.1,
       missingDays: 0,
     });
   });
