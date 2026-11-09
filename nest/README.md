@@ -14,13 +14,13 @@ $ pnpm install
 
 ```bash
 # development
-$ pnpm run start
+$ pnpm start
 
 # watch mode
-$ pnpm run start:dev
+$ pnpm start:dev
 
 # production mode
-$ pnpm run start:prod
+$ pnpm start:prod
 ```
 
 This will run on port 3001 by default. To change port, create an .env file and set

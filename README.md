@@ -7,6 +7,7 @@ Hi, thank you for trying this project, and hope this project finds you well. Ple
 ### Setup
 
 ```bash
+$ cd nest
 $ pnpm install
 ```
 
@@ -24,6 +25,7 @@ PORT=Your preferred port
 ### Setup
 
 ```bash
+$ cd nuxt
 $ pnpm install
 ```
 

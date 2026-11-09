@@ -22,9 +22,6 @@ export default defineNuxtConfig({
       ],
     },
   },
-  devServer: {
-    port: 6060,
-  },
   runtimeConfig: {
     public: {
       apiBase: process.env.API_URL || "",
