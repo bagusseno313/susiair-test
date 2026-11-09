@@ -22,12 +22,19 @@ describe('FlightHoursService', () => {
     const referencePoint = result.series.find(
       (point) => point.date === '2024-12-27',
     );
+    const zeroHourPoint = result.series.find(
+      (point) => point.date === '2024-12-28',
+    );
 
     expect(result.referenceDate).toBe('2024-12-27');
     expect(result.missingDays).toBe(13);
     expect(referencePoint).toMatchObject({
       value: 5.7,
       missingDays: 6,
+    });
+    expect(zeroHourPoint).toMatchObject({
+      value: 5.7,
+      missingDays: 5,
     });
   });
 
