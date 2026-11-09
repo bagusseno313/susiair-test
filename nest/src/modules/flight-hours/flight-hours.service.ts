@@ -58,7 +58,7 @@ function parseDateOnly(value: string): Date {
     throw new BadRequestException('Dates must be in YYYY-MM-DD format.');
   }
 
-  const parsed = new Date(\`\${value}T00:00:00Z\`);
+  const parsed = new Date(value + 'T00:00:00Z');
 
   if (Number.isNaN(parsed.getTime()) || toDateString(parsed) !== value) {
     throw new BadRequestException('Dates must be in YYYY-MM-DD format.');
