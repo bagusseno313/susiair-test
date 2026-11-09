@@ -47,11 +47,5 @@ Also, I provided a notice when there is a missing date. If you try to set REFERE
 
 ### Futures dates
 
-Future dates will also show value on all toggles if the past dates have data, since rolling sum means it also includes past data.
-
-For example, on 1w and date is today, it will calculate data from (today - 6 days) to today:
-Assume today: 9 November 2026
-6 days before: 3 November 2026
-Period: 3–9 November 2026
-
-However, the test documentation stated to make today as 15 may 2026, while the dataset has dates until 31 May 2026. This makes "future" dates also have data. To be honest I'm a bit confused whether I have to delete dates from 16 May 2026 and beyond. I don't see any such instruction so I keep dates from 16 May and beyond. If you want to see real dates with missing future dates, please make the REFERENCE_DATE in nest/src/common/reference-date.ts to 31 May 2026.
+Future dates will also show value on all toggles if the past dates have data, since rolling sum means it also includes past data. However, I don’t include the future date to the sum. Since we assume today is 15 May 2026, then beyond that date we assume as future dates.
+For example, assume today is 9 November, then tomorrow is 10 November. On 1w and date is 10 November, it will sum data from 4 November 2026 to 9 November 2026. Another example, on date 11 November 2026, it will calculate data from 5 November 2026 to 9 November 2026.
