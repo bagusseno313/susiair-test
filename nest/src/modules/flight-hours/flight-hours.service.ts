@@ -28,6 +28,7 @@ export interface FlightHoursSummaryPoint {
   date: string;
   value: number;
   label: string;
+  missingDays: number;
 }
 
 export interface FlightHoursSummaryResponse {
@@ -37,6 +38,7 @@ export interface FlightHoursSummaryResponse {
   max: number;
   windowDays: number;
   displayRangeDays: number;
+  missingDays: number;
   series: FlightHoursSummaryPoint[];
 }
 
@@ -52,9 +54,13 @@ const RANGE_CONFIG: Record<
 };
 
 function parseDateOnly(value: string): Date {
-  const parsed = new Date(`${value}T00:00:00Z`);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    throw new BadRequestException('Dates must be in YYYY-MM-DD format.');
+  }
 
-  if (Number.isNaN(parsed.getTime())) {
+  const parsed = new Date(value + 'T00:00:00Z');
+
+  if (Number.isNaN(parsed.getTime()) || toDateString(parsed) !== value) {
     throw new BadRequestException('Dates must be in YYYY-MM-DD format.');
   }
 
@@ -132,7 +138,10 @@ export class FlightHoursService {
         Number(entry.hours ?? 0),
       ]),
     );
-    const referenceDate = new Date();
+    const configuredReferenceDate = process.env.REFERENCE_DATE?.trim();
+    const referenceDate = configuredReferenceDate
+      ? parseDateOnly(configuredReferenceDate)
+      : parseDateOnly(toDateString(new Date()));
 
     const series: FlightHoursSummaryPoint[] = [];
 
@@ -150,11 +159,18 @@ export class FlightHoursService {
       );
 
       let totalHours = 0;
+      let missingDays = 0;
       const cursor = new Date(windowStart);
 
       while (cursor <= candidateDate) {
         const iso = toDateString(cursor);
-        totalHours += hoursByDate.get(iso) ?? 0;
+
+        if (hoursByDate.has(iso)) {
+          totalHours += hoursByDate.get(iso) ?? 0;
+        } else {
+          missingDays += 1;
+        }
+
         cursor.setUTCDate(cursor.getUTCDate() + 1);
       }
 
@@ -162,7 +178,32 @@ export class FlightHoursService {
         date: toDateString(candidateDate),
         value: Number(totalHours.toFixed(1)),
         label: formatShortDate(candidateDate),
+        missingDays,
       });
+    }
+
+    // Count unique missing dates across the union of the chart's rolling
+    // windows; overlapping windows must not double-count absent dates.
+    const chartStartDate = new Date(referenceDate);
+    chartStartDate.setUTCDate(
+      referenceDate.getUTCDate() -
+        config.displayRangeDays -
+        (config.windowDays - 1),
+    );
+
+    const chartEndDate = new Date(referenceDate);
+    chartEndDate.setUTCDate(
+      referenceDate.getUTCDate() + config.displayRangeDays,
+    );
+
+    let missingDays = 0;
+    const chartCursor = new Date(chartStartDate);
+
+    while (chartCursor <= chartEndDate) {
+      if (!hoursByDate.has(toDateString(chartCursor))) {
+        missingDays += 1;
+      }
+      chartCursor.setUTCDate(chartCursor.getUTCDate() + 1);
     }
 
     return {
@@ -172,6 +213,7 @@ export class FlightHoursService {
       max: config.max,
       windowDays: config.windowDays,
       displayRangeDays: config.displayRangeDays,
+      missingDays,
       series,
     };
   }

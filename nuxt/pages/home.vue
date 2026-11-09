@@ -25,6 +25,7 @@ interface FlightHourSummaryPoint {
   date: string;
   value: number;
   label: string;
+  missingDays: number;
 }
 
 interface FlightHourSummaryResponse {
@@ -34,6 +35,7 @@ interface FlightHourSummaryResponse {
   max: number;
   windowDays: number;
   displayRangeDays: number;
+  missingDays: number;
   series: FlightHourSummaryPoint[];
 }
 
@@ -87,69 +89,100 @@ const summary = ref<FlightHourSummaryResponse>({
   max: 125,
   windowDays: 30,
   displayRangeDays: 7,
+  missingDays: 0,
   series: [],
 });
 
 const chartPoints = computed(() => summary.value.series ?? []);
+const chartGeometry = {
+  width: 860,
+  height: 250,
+  left: 62,
+  right: 18,
+  top: 20,
+  bottom: 42,
+} as const;
+const chartPlotWidth =
+  chartGeometry.width - chartGeometry.left - chartGeometry.right;
+const chartPlotHeight =
+  chartGeometry.height - chartGeometry.top - chartGeometry.bottom;
 const chartMax = computed(() => Math.max(summary.value.max || 1, 1));
+const hoveredPoint = ref<FlightHourSummaryPoint | null>(null);
+const hoveredPointIndex = ref(-1);
+
+const getChartX = (index: number) =>
+  chartGeometry.left +
+  (index / Math.max(chartPoints.value.length - 1, 1)) * chartPlotWidth;
+
+const getChartY = (value: number) =>
+  chartGeometry.top +
+  chartPlotHeight -
+  (value / chartMax.value) * chartPlotHeight;
+
+const formatChartValue = (value: number) =>
+  Number(value.toFixed(1)).toString();
+
+const chartYAxisTicks = computed(() =>
+  Array.from({ length: 5 }, (_, index) => {
+    const value = chartMax.value * (1 - index / 4);
+    return {
+      label: formatChartValue(value),
+      y: getChartY(value),
+    };
+  }),
+);
+
 const chartLinePoints = computed(() => {
   if (!chartPoints.value.length) return "";
 
-  const width = 820;
-  const height = 220;
-  const padding = { top: 20, right: 20, bottom: 24, left: 32 };
-  const innerWidth = width - padding.left - padding.right;
-  const innerHeight = height - padding.top - padding.bottom;
-
   return chartPoints.value
-    .map((point, index) => {
-      const x =
-        padding.left +
-        (index / Math.max(chartPoints.value.length - 1, 1)) * innerWidth;
-      const y =
-        padding.top +
-        innerHeight -
-        (point.value / chartMax.value) * innerHeight;
-      return `${x},${y}`;
-    })
+    .map((point, index) => `${getChartX(index)},${getChartY(point.value)}`)
     .join(" ");
 });
 
-const limitLineY = computed(() => {
-  const height = 220;
-  const padding = { top: 20, right: 20, bottom: 24, left: 32 };
-  const innerHeight = height - padding.top - padding.bottom;
-
-  return (
-    padding.top +
-    innerHeight -
-    (summary.value.limit / chartMax.value) * innerHeight
-  );
-});
+const limitLineY = computed(() => getChartY(summary.value.limit));
 
 const areaPath = computed(() => {
   if (!chartPoints.value.length) return "";
 
-  const width = 820;
-  const height = 220;
-  const padding = { top: 20, right: 20, bottom: 24, left: 32 };
-  const innerWidth = width - padding.left - padding.right;
-  const innerHeight = height - padding.top - padding.bottom;
-
-  const points = chartPoints.value.map((point, index) => {
-    const x =
-      padding.left +
-      (index / Math.max(chartPoints.value.length - 1, 1)) * innerWidth;
-    const y =
-      padding.top + innerHeight - (point.value / chartMax.value) * innerHeight;
-    return [x, y];
-  });
-
+  const points = chartPoints.value.map((point, index) => [
+    getChartX(index),
+    getChartY(point.value),
+  ]);
   const firstX = points[0][0];
   const lastX = points[points.length - 1][0];
-  const baseY = padding.top + innerHeight;
+  const baseY = chartGeometry.top + chartPlotHeight;
 
   return `M ${firstX} ${baseY} L ${points.map(([x, y]) => `${x} ${y}`).join(" L ")} L ${lastX} ${baseY} Z`;
+});
+
+const setHoveredPoint = (point: FlightHourSummaryPoint, index: number) => {
+  hoveredPoint.value = point;
+  hoveredPointIndex.value = index;
+};
+
+const clearHoveredPoint = () => {
+  hoveredPoint.value = null;
+  hoveredPointIndex.value = -1;
+};
+
+const tooltipX = computed(() => {
+  if (hoveredPointIndex.value < 0) return 0;
+
+  return Math.max(
+    6,
+    Math.min(
+      getChartX(hoveredPointIndex.value) - 90,
+      chartGeometry.width - 186,
+    ),
+  );
+});
+
+const tooltipY = computed(() => {
+  if (!hoveredPoint.value) return 0;
+
+  const pointY = getChartY(hoveredPoint.value.value);
+  return pointY > 96 ? pointY - 76 : pointY + 12;
 });
 
 const getDateInput = (date: Date) => date.toISOString().slice(0, 10);
@@ -160,8 +193,10 @@ const shiftDate = (date: Date, dayOffset: number) => {
   return nextDate;
 };
 
-const getCardRange = (key: string) => {
-  const referenceDate = new Date();
+const getCardRange = (key: string, referenceDateValue?: string) => {
+  const referenceDate = referenceDateValue
+    ? new Date(`${referenceDateValue}T00:00:00Z`)
+    : new Date();
 
   switch (key) {
     case "daily":
@@ -248,7 +283,10 @@ const loadSummary = async () => {
 const loadCards = async () => {
   const cardEntries = await Promise.all(
     cardConfigs.map(async (card) => {
-      const range = getCardRange(card.key);
+      const range = getCardRange(
+        card.key,
+        summary.value.referenceDate || undefined,
+      );
       const response = await fetch(
         `${getApiUrl("/flight-hours")}?from=${range.from}&to=${range.to}`,
       );
@@ -387,22 +425,38 @@ watch(selectedRange, () => {
         </div>
 
         <div class="chart-wrap">
+          <p v-if="summary.missingDays > 0" class="chart-data-note" role="status">
+            {{ summary.missingDays }}
+            {{ summary.missingDays === 1 ? "day is" : "days are" }} missing from
+            the chart's calculation range. Missing dates are treated as 0 flight
+            hours.
+          </p>
+
           <svg
-            viewBox="0 0 820 220"
+            viewBox="0 0 860 250"
             class="chart-svg"
-            role="img"
+            role="group"
             aria-label="Flight hour summary chart"
           >
-            <g class="grid-lines">
-              <line x1="32" x2="800" y1="20" y2="20" />
-              <line x1="32" x2="800" y1="80" y2="80" />
-              <line x1="32" x2="800" y1="140" y2="140" />
-              <line x1="32" x2="800" y1="200" y2="200" />
+            <g
+              v-for="tick in chartYAxisTicks"
+              :key="tick.label"
+              class="grid-lines"
+            >
+              <line x1="62" x2="842" :y1="tick.y" :y2="tick.y" />
+              <text
+                class="y-axis-label"
+                x="52"
+                :y="tick.y + 4"
+                text-anchor="end"
+              >
+                {{ tick.label }}
+              </text>
             </g>
 
             <line
-              x1="32"
-              x2="800"
+              x1="62"
+              x2="842"
               :y1="limitLineY"
               :y2="limitLineY"
               class="limit-line"
@@ -411,35 +465,46 @@ watch(selectedRange, () => {
             <path :d="areaPath" class="area-fill" />
             <polyline :points="chartLinePoints" class="chart-line" />
 
-            <g v-for="point in chartPoints" :key="point.date">
-              <circle
-                :cx="
-                  32 +
-                  (chartPoints.indexOf(point) /
-                    Math.max(chartPoints.length - 1, 1)) *
-                    768
-                "
-                :cy="20 + (200 - (point.value / chartMax) * 180)"
-                r="4"
-                class="chart-point"
-              />
+            <circle
+              v-for="(point, index) in chartPoints"
+              :key="point.date"
+              :cx="getChartX(index)"
+              :cy="getChartY(point.value)"
+              :r="hoveredPoint?.date === point.date ? 6 : 4"
+              class="chart-point"
+              tabindex="0"
+              role="graphics-symbol"
+              :aria-label="`${point.date}: ${point.value.toFixed(1)} flight hours; ${point.missingDays} missing days in rolling window`"
+              @mouseenter="setHoveredPoint(point, index)"
+              @mouseleave="clearHoveredPoint"
+              @focus="setHoveredPoint(point, index)"
+              @blur="clearHoveredPoint"
+            />
+
+            <g
+              v-if="hoveredPoint"
+              class="chart-tooltip"
+              :transform="`translate(${tooltipX}, ${tooltipY})`"
+              aria-hidden="true"
+            >
+              <rect width="180" height="66" rx="8" />
+              <text x="10" y="18" class="chart-tooltip-date">
+                {{ hoveredPoint.date }}
+              </text>
+              <text x="10" y="37">
+                {{ hoveredPoint.value.toFixed(1) }} flight hours
+              </text>
+              <text x="10" y="54">
+                {{ hoveredPoint.missingDays }} missing days in window
+              </text>
             </g>
 
             <g
-              v-for="point in chartPoints"
+              v-for="(point, index) in chartPoints"
               :key="`${point.date}-label`"
               class="x-labels"
             >
-              <text
-                :x="
-                  32 +
-                  (chartPoints.indexOf(point) /
-                    Math.max(chartPoints.length - 1, 1)) *
-                    768
-                "
-                y="214"
-                text-anchor="middle"
-              >
+              <text :x="getChartX(index)" y="232" text-anchor="middle">
                 {{ point.label }}
               </text>
             </g>
@@ -755,12 +820,28 @@ watch(selectedRange, () => {
 .chart-svg {
   width: 100%;
   min-width: 720px;
-  height: 220px;
+  height: 250px;
+  overflow: visible;
 }
 
 .grid-lines line {
   stroke: rgba(148, 163, 184, 0.35);
   stroke-width: 1;
+}
+
+.y-axis-label {
+  fill: #64748b;
+  font-size: 11px;
+}
+
+.chart-data-note {
+  margin: 0 0 12px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  background: rgba(245, 158, 11, 0.1);
+  color: #92400e;
+  font-size: 0.82rem;
+  line-height: 1.45;
 }
 
 .limit-line {
@@ -783,6 +864,36 @@ watch(selectedRange, () => {
 
 .chart-point {
   fill: #0e2138;
+  cursor: pointer;
+  outline: none;
+  transition: r 0.15s ease, fill 0.15s ease;
+}
+
+.chart-point:hover,
+.chart-point:focus {
+  fill: #22c5e8;
+  stroke: #0e2138;
+  stroke-width: 2;
+}
+
+.chart-tooltip {
+  pointer-events: none;
+}
+
+.chart-tooltip rect {
+  fill: #0e2138;
+  stroke: rgba(255, 255, 255, 0.2);
+  stroke-width: 1;
+  filter: drop-shadow(0 4px 10px rgba(14, 33, 56, 0.18));
+}
+
+.chart-tooltip text {
+  fill: #ffffff;
+  font-size: 11px;
+}
+
+.chart-tooltip .chart-tooltip-date {
+  font-weight: 700;
 }
 
 .x-labels text {
