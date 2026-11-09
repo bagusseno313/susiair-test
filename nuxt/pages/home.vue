@@ -529,7 +529,7 @@ watch(selectedRange, () => {
                 :y="Math.max(getChartY(point.value) - 13, 12)"
                 text-anchor="middle"
               >
-                Today
+                (Today)
               </text>
             </g>
 
