@@ -1,6 +1,12 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { readFile } from 'node:fs/promises';
 
+import {
+  getReferenceDate,
+  parseDateOnly,
+  toDateString,
+} from '../../common/reference-date.js';
+
 export type FlightHoursRangeKey = '1w' | '1m' | '3m' | '6m' | '1y';
 
 interface FlightHoursDataset {
@@ -52,24 +58,6 @@ const RANGE_CONFIG: Record<
   '6m': { limit: 600, max: 625, windowDays: 180, displayRangeDays: 7 },
   '1y': { limit: 1050, max: 1200, windowDays: 365, displayRangeDays: 7 },
 };
-
-function parseDateOnly(value: string): Date {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    throw new BadRequestException('Dates must be in YYYY-MM-DD format.');
-  }
-
-  const parsed = new Date(value + 'T00:00:00Z');
-
-  if (Number.isNaN(parsed.getTime()) || toDateString(parsed) !== value) {
-    throw new BadRequestException('Dates must be in YYYY-MM-DD format.');
-  }
-
-  return parsed;
-}
-
-function toDateString(date: Date): string {
-  return date.toISOString().slice(0, 10);
-}
 
 function formatShortDate(date: Date): string {
   return new Intl.DateTimeFormat('en-US', {
@@ -143,10 +131,7 @@ export class FlightHoursService {
         latest === null || entry.date > latest ? entry.date : latest,
       null,
     );
-    const configuredReferenceDate = process.env.REFERENCE_DATE?.trim();
-    const referenceDate = configuredReferenceDate
-      ? parseDateOnly(configuredReferenceDate)
-      : parseDateOnly(toDateString(new Date()));
+    const referenceDate = getReferenceDate();
 
     const series: FlightHoursSummaryPoint[] = [];
 
