@@ -8,7 +8,7 @@ async function bootstrap() {
 
   app.enableCors({
     origin: [
-      process.env.API_URL,
+      process.env.APP_URL,
       'http://localhost:7000',
       'http://127.0.0.1:7000',
     ],
