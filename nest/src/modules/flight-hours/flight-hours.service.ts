@@ -148,18 +148,23 @@ export class FlightHoursService {
         candidateDate.getUTCDate() - (config.windowDays - 1),
       );
 
+      // Keep the rolling window anchored to its chart point, but never include
+      // records after the application's hardcoded reference date ("Today").
+      const calculationEnd =
+        candidateDate > referenceDate ? referenceDate : candidateDate;
+
       let totalHours = 0;
       let missingDays = 0;
       const cursor = new Date(windowStart);
 
-      while (cursor <= candidateDate) {
+      while (cursor <= calculationEnd) {
         const iso = toDateString(cursor);
 
         if (hoursByDate.has(iso)) {
           totalHours += hoursByDate.get(iso) ?? 0;
         } else if (latestDatasetDate === null || iso <= latestDatasetDate) {
           // Count missing history at the beginning or gaps inside the dataset.
-          // Dates after the final dataset date are future dates, not missing data.
+          // Dates after the reference date are excluded, not treated as missing.
           missingDays += 1;
         }
 
@@ -174,8 +179,8 @@ export class FlightHoursService {
       });
     }
 
-    // Count unique missing dates across the union of the chart's rolling
-    // windows; overlapping windows must not double-count absent dates.
+    // Count unique missing dates across the chart's eligible rolling windows.
+    // Future dates after Today are excluded and must not inflate this notice.
     const chartStartDate = new Date(referenceDate);
     chartStartDate.setUTCDate(
       referenceDate.getUTCDate() -
@@ -183,15 +188,10 @@ export class FlightHoursService {
         (config.windowDays - 1),
     );
 
-    const chartEndDate = new Date(referenceDate);
-    chartEndDate.setUTCDate(
-      referenceDate.getUTCDate() + config.displayRangeDays,
-    );
-
     let missingDays = 0;
     const chartCursor = new Date(chartStartDate);
 
-    while (chartCursor <= chartEndDate) {
+    while (chartCursor <= referenceDate) {
       const iso = toDateString(chartCursor);
 
       if (
