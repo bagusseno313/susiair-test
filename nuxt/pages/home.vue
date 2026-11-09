@@ -119,8 +119,7 @@ const getChartY = (value: number) =>
   chartPlotHeight -
   (value / chartMax.value) * chartPlotHeight;
 
-const formatChartValue = (value: number) =>
-  Number(value.toFixed(1)).toString();
+const formatChartValue = (value: number) => Number(value.toFixed(1)).toString();
 
 const chartYAxisTicks = computed(() =>
   Array.from({ length: 5 }, (_, index) => {
@@ -447,7 +446,11 @@ watch(selectedRange, () => {
         </div>
 
         <div class="chart-wrap">
-          <p v-if="summary.missingDays > 0" class="chart-data-note" role="status">
+          <p
+            v-if="summary.missingDays > 0"
+            class="chart-data-note"
+            role="status"
+          >
             {{ summary.missingDays }}
             {{ summary.missingDays === 1 ? "day is" : "days are" }} missing from
             the chart's calculation range. Missing dates are treated as 0 flight
@@ -526,7 +529,7 @@ watch(selectedRange, () => {
                 :y="Math.max(getChartY(point.value) - 13, 12)"
                 text-anchor="middle"
               >
-                Reference
+                Today
               </text>
             </g>
 
@@ -781,7 +784,9 @@ watch(selectedRange, () => {
 .progress-fill {
   height: 100%;
   border-radius: inherit;
-  transition: width 0.3s ease, background-color 0.3s ease;
+  transition:
+    width 0.3s ease,
+    background-color 0.3s ease;
 }
 
 .limit-row {
@@ -911,7 +916,9 @@ watch(selectedRange, () => {
   fill: #0e2138;
   cursor: pointer;
   outline: none;
-  transition: r 0.15s ease, fill 0.15s ease;
+  transition:
+    r 0.15s ease,
+    fill 0.15s ease;
 }
 
 .chart-point:hover,
