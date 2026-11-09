@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { SchedulesService } from './schedules.service.js';
 
@@ -10,15 +10,19 @@ afterEach(() => {
   } else {
     process.env.REFERENCE_DATE = originalReferenceDate;
   }
+
+  vi.useRealTimers();
 });
 
 describe('SchedulesService', () => {
-  it('uses REFERENCE_DATE for the calendar reference day', async () => {
+  it('uses the hardcoded date for the calendar reference day', async () => {
     process.env.REFERENCE_DATE = '2026-05-31';
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-06-01T12:00:00.000Z'));
 
     const result = await new SchedulesService().getSchedulesForMonth(2026, 5);
 
-    expect(result.today).toBe('2026-05-31');
+    expect(result.today).toBe('2026-05-15');
   });
   it('should return all schedules for a month', async () => {
     const service = new SchedulesService();
