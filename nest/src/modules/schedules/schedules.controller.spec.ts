@@ -11,11 +11,16 @@ afterEach(() => {
   } else {
     process.env.REFERENCE_DATE = originalReferenceDate;
   }
+
+  vi.useRealTimers();
 });
 
 describe('SchedulesController', () => {
-  it('defaults the requested month to REFERENCE_DATE', async () => {
-    process.env.REFERENCE_DATE = '2026-05-31';
+  it('defaults the requested month to the hardcoded reference date', async () => {
+    process.env.REFERENCE_DATE = '2026-06-20';
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-06-01T12:00:00.000Z'));
+
     const schedulesService = {
       getSchedulesForMonth: vi.fn().mockResolvedValue({}),
     };
@@ -32,7 +37,6 @@ describe('SchedulesController', () => {
   });
 
   it('keeps explicitly requested year and month', async () => {
-    process.env.REFERENCE_DATE = '2026-05-31';
     const schedulesService = {
       getSchedulesForMonth: vi.fn().mockResolvedValue({}),
     };

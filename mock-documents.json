@@ -1,5 +1,5 @@
 {
-  "today": "2026-05-31",
+  "today": "2026-05-15",
   "thresholds": {
     "warningDays": 30,
     "comment": "If daysRemaining <= 0: expired (red). If 0 < daysRemaining <= warningDays: soon (amber). Else: safe (green). daysRemaining = (expiryDate - today) in days."

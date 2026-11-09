@@ -1,5 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 
+const REFERENCE_DATE = '2026-05-15';
+
 export function toDateString(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
@@ -19,9 +21,5 @@ export function parseDateOnly(value: string): Date {
 }
 
 export function getReferenceDate(): Date {
-  const configuredReferenceDate = process.env.REFERENCE_DATE?.trim();
-
-  return configuredReferenceDate
-    ? parseDateOnly(configuredReferenceDate)
-    : parseDateOnly(toDateString(new Date()));
+  return parseDateOnly(REFERENCE_DATE);
 }

@@ -15,43 +15,30 @@ afterEach(() => {
 });
 
 describe('DocumentsService', () => {
-  it('calculates document expiry from REFERENCE_DATE when configured', async () => {
+  it('calculates document expiry from the hardcoded date', async () => {
     process.env.REFERENCE_DATE = '2026-05-31';
-
-    const documents = await new DocumentsService().getDocuments();
-    const license = documents.find((document) => document.id === 'doc_license');
-    const medical = documents.find((document) => document.id === 'doc_medical');
-
-    expect(license).toMatchObject({
-      daysRemaining: -2,
-      status: 'expired',
-      badge: '2d ago',
-    });
-    expect(medical).toMatchObject({
-      daysRemaining: 11,
-      status: 'soon',
-      badge: '11d left',
-    });
-  });
-
-  it('falls back to today's date when REFERENCE_DATE is empty', async () => {
-    process.env.REFERENCE_DATE = '';
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-06-01T12:00:00.000Z'));
 
     const documents = await new DocumentsService().getDocuments();
     const license = documents.find((document) => document.id === 'doc_license');
     const medical = documents.find((document) => document.id === 'doc_medical');
+    const security = documents.find((document) => document.id === 'doc_security');
 
     expect(license).toMatchObject({
-      daysRemaining: -3,
-      status: 'expired',
-      badge: '3d ago',
+      daysRemaining: 14,
+      status: 'soon',
+      badge: '14d left',
     });
     expect(medical).toMatchObject({
-      daysRemaining: 10,
+      daysRemaining: 27,
       status: 'soon',
-      badge: '10d left',
+      badge: '27d left',
+    });
+    expect(security).toMatchObject({
+      daysRemaining: -14,
+      status: 'expired',
+      badge: '14d ago',
     });
   });
 });
